@@ -36,10 +36,14 @@ def scene_intersect(ray_origin, ray_direction):
 def normalized(vector):
     return vector / np.linalg.norm(vector)
 
+def reflect(vector, normal): # the 6. coefficient encodes surface roughness (the larger it is, the glossier is the surface)
+    return normalized(vector - 2*np.dot(vector, normal)*normal)
+
 def trace(eye, ray, depth):
     hit,point,normal,color = scene_intersect(eye, ray)             # find closest point along the ray
-    if hit: return color
-    return ambient_color                                           # no intersection
+    if hit and depth+1<maxdepth:
+        return color * trace(point, reflect(ray, normal), depth+1) # accumulate color along the reflected ray
+    return ambient_color                                           # no intersection or too many reflections -> ambient color
 
 width, height, ambient_color = 640, 480, np.array([.5]*3)
 focal, azimuth  = 500, 30*np.pi/180
