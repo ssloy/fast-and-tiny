@@ -20,18 +20,19 @@ def sphere_intersect(center, radius, ray_origin, ray_direction):
 
 def scene_intersect(ray_origin, ray_direction):
     nearest = np.inf                             # the (squared) distance from the ray origin to the nearest point in the scene
-    point,normal,color = None,None,None # the information about the intersection point we want to return
-    for o in [ {'center': np.array([  6,   0,  7]), 'radius':  2, 'color': np.array([1., .4, .6])}, # description of the scene:
-               {'center': np.array([2.8, 1.1,  7]), 'radius': .9, 'color': np.array([1., 1., .3])}, # two spheres and two boxes
-               {'min': np.array([3, -4, 11]), 'max': np.array([ 7,   2, 13]), 'color': np.array([.4, .7, 1.])},
-               {'min': np.array([0,  2,  6]), 'max': np.array([11, 2.2, 16]), 'color': np.array([.6, .7, .6])} ]:
+    point,normal,color,hot = None,None,None,None # the information about the intersection point we want to return
+    for o in [ {'center': np.array([  6,   0,  7]), 'radius':  2, 'color': np.array([1., .4, .6]), 'hot': False}, # description of the scene:
+               {'center': np.array([2.8, 1.1,  7]), 'radius': .9, 'color': np.array([1., 1., .3]), 'hot': False}, # three spheres and two boxes
+               {'center': np.array([  5, -10, -7]), 'radius':  8, 'color': np.array([1., 1., 1.]), 'hot': True},  # one of the spheres is "hot" (incandescent)
+               {'min': np.array([3, -4, 11]), 'max': np.array([ 7,   2, 13]), 'color': np.array([.4, .7, 1.]), 'hot': False},
+               {'min': np.array([0,  2,  6]), 'max': np.array([11, 2.2, 16]), 'color': np.array([.6, .7, .6]), 'hot': False} ]:
         if 'center' in o: # is it a sphere or a box?
             hit,p,n = sphere_intersect(o['center'], o['radius'], ray_origin, ray_direction)
         else:
             hit,p,n = box_intersect(o['min'], o['max'], ray_origin, ray_direction)
         if hit and (d2:=np.dot(p-ray_origin, p-ray_origin))<nearest: # we have encountered the closest point so far
-            nearest,point,normal,color = d2,p,n,o['color']
-    return nearest<np.inf, point, normal, color # hit or not, intersection point, normal at the point, color of the object
+            nearest,point,normal,color,hot = d2,p,n,o['color'],o['hot']
+    return nearest<np.inf, point, normal, color, hot # hit or not, intersection point, normal at the point, color of the object, hot or not
 
 def normalized(vector):
     return vector / np.linalg.norm(vector)
@@ -40,7 +41,8 @@ def reflect(vector, normal): # the 6. coefficient encodes surface roughness (the
     return normalized(vector - 2*np.dot(vector, normal)*normal)
 
 def trace(eye, ray, depth):
-    hit,point,normal,color = scene_intersect(eye, ray)             # find closest point along the ray
+    hit,point,normal,color,hot = scene_intersect(eye, ray)         # find closest point along the ray
+    if hot: return color                                           # no reflection from hot objects
     if hit and depth+1<maxdepth:
         return color * trace(point, reflect(ray, normal), depth+1) # accumulate color along the reflected ray
     return ambient_color                                           # no intersection or too many reflections -> ambient color
