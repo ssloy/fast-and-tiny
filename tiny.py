@@ -38,7 +38,7 @@ def normalized(vector):
     return vector / np.linalg.norm(vector)
 
 def reflect(vector, normal): # the 6. coefficient encodes surface roughness (the larger it is, the glossier is the surface)
-    return normalized(vector - 2*np.dot(vector, normal)*normal)
+    return normalized(vector - 2*np.dot(vector, normal)*normal + np.random.uniform(low=-1., high=1., size=3)/6.)
 
 def trace(eye, ray, depth):
     hit,point,normal,color,hot = scene_intersect(eye, ray)         # find closest point along the ray
@@ -49,13 +49,14 @@ def trace(eye, ray, depth):
 
 width, height, ambient_color = 640, 480, np.array([.5]*3)
 focal, azimuth  = 500, 30*np.pi/180
-maxdepth = 3
+nrays, maxdepth = 10, 3
 image = np.zeros((height, width, 3))
 for i in range(height):
     for j in range(width):
         ray = normalized(np.array([j-width/2, i-height/2, focal]))        # emit the ray along Z axis
         ray[0],ray[2] = (np.cos(azimuth)*ray[0] + np.sin(azimuth)*ray[2], # and then rotate it 30 degrees around Y axis
                         -np.sin(azimuth)*ray[0] + np.cos(azimuth)*ray[2])
-        image[i, j] += trace(np.zeros(3), ray, 0)
+        for r in range(nrays):
+            image[i, j] += trace(np.zeros(3), ray, 0)
     print("%d/%d" % (i + 1, height))
-plt.imsave('result.png', np.clip(image, 0, 1))
+plt.imsave('result.png', np.clip(image/nrays, 0, 1))
