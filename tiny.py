@@ -1,6 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+def box_intersect(bmin, bmax, ray_origin, ray_direction):
+    ray_direction = np.where(np.abs(ray_direction)<1e-3, 1e-3, ray_direction)                  # avoid division by zero
+    entries = (np.where(np.sign(ray_direction) == 1, bmin, bmax) - ray_origin) / ray_direction # here we test against 3 planes (instead of 6), i.e.
+    t, t_axis = np.max(entries), np.argmax(entries)                                            # no rendering from the inside of a box
+    point = ray_origin + t * ray_direction                                                     # intersection between the ray and the plane
+    normal = np.zeros(3)                                                                       # normal at the intersection
+    normal[t_axis] = -np.sign(ray_direction[t_axis])                                           # both point and normal contain junk values if no intersection
+    return (t>0) and np.all((point>bmin-1e-3) & (point<bmax+1e-3)), point, normal              # check whether the intersection lies in the (eroded) box
+
 def sphere_intersect(center, radius, ray_origin, ray_direction):
     proj = np.dot(ray_direction, center-ray_origin)
     delta = radius**2 + proj**2 - np.dot((center-ray_origin),(center-ray_origin))
@@ -12,10 +21,14 @@ def sphere_intersect(center, radius, ray_origin, ray_direction):
 def scene_intersect(ray_origin, ray_direction):
     nearest = np.inf                             # the (squared) distance from the ray origin to the nearest point in the scene
     point,normal,color = None,None,None # the information about the intersection point we want to return
-    for o in [ {'center': np.array([  6,   0,  7]), 'radius':  2, 'color': np.array([1., .4, .6])},  # description of the scene:
-               {'center': np.array([2.8, 1.1,  7]), 'radius': .9, 'color': np.array([1., 1., .3])}]: # two spheres
-
-        hit,p,n = sphere_intersect(o['center'], o['radius'], ray_origin, ray_direction)
+    for o in [ {'center': np.array([  6,   0,  7]), 'radius':  2, 'color': np.array([1., .4, .6])}, # description of the scene:
+               {'center': np.array([2.8, 1.1,  7]), 'radius': .9, 'color': np.array([1., 1., .3])}, # two spheres and two boxes
+               {'min': np.array([3, -4, 11]), 'max': np.array([ 7,   2, 13]), 'color': np.array([.4, .7, 1.])},
+               {'min': np.array([0,  2,  6]), 'max': np.array([11, 2.2, 16]), 'color': np.array([.6, .7, .6])} ]:
+        if 'center' in o: # is it a sphere or a box?
+            hit,p,n = sphere_intersect(o['center'], o['radius'], ray_origin, ray_direction)
+        else:
+            hit,p,n = box_intersect(o['min'], o['max'], ray_origin, ray_direction)
         if hit and (d2:=np.dot(p-ray_origin, p-ray_origin))<nearest: # we have encountered the closest point so far
             nearest,point,normal,color = d2,p,n,o['color']
     return nearest<np.inf, point, normal, color # hit or not, intersection point, normal at the point, color of the object
